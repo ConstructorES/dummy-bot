@@ -13,4 +13,4 @@ RestartSec=10s
 StandardOutput=file:/home/foo/bar/dummy.log
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
