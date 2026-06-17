@@ -1,0 +1,16 @@
+[Unit]
+Description=Dummy Discord bot service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+After=network.target
+
+[Service]
+ExecStart=/home/foo/bar/dummy
+
+Restart=always
+RestartSec=10s
+
+StandardOutput=file:/home/foo/bar/dummy.log
+
+[Install]
+WantedBy=default.target
