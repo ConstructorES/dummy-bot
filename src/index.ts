@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, Integration, REST, Routes, TextChannel, type CacheType } from 'discord.js';
+import { ChatInputCommandInteraction, Client, Events, GatewayIntentBits, GuildMember, Integration, REST, Routes, TextChannel, type CacheType, type PartialGuildMember } from 'discord.js';
 import { initDb } from './db/db';
 import { dirname, join } from 'path'
 
@@ -55,7 +55,7 @@ setTimeout(() => {
     exitHandler({ exit: true });
 }, 30_000)
 
-const bot = new Client<true>({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildModeration] });
+const bot = new Client<true>({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildModeration] });
 
 bootstrap().then(async () => {
     bot.on(Events.ClientReady, () => {
@@ -80,8 +80,6 @@ bootstrap().then(async () => {
             if (message.member.user.bot) return;
             if (!message.member.bannable) return;
 
-            const username = message.member.user.username;
-
             message.member.ban({
                 reason: 'You shall not pass!',
                 deleteMessageSeconds: 3600 // 1 hour
@@ -89,12 +87,61 @@ bootstrap().then(async () => {
 
             if (message.deletable) message.delete()
 
-            channelGeneral.send(`${username} probó de la miel prohibida`);
-            console.warn(`@${username} was banned due to honeypot detection`)
+            channelGeneral.send(`${message.member.user.displayName} probó de la miel prohibida`);
+            logger.send(`<@${message.member.user.id}> was banned due to honeypot detection`)
 
             return;
         }
     })
+
+    const clankerKicksSchedules = new Map();
+
+    async function refreshMember(member: GuildMember | PartialGuildMember) {
+        return await member.guild.members.fetch({ user: member.user.id, force: true });
+    }
+
+    async function detectClanker(memberInfo: GuildMember | PartialGuildMember) {
+        const userId = memberInfo.user.id;
+
+        try {
+            const member = await refreshMember(memberInfo);
+
+            if (member.roles.cache.find((v) => v.name === 'Bot-Chan')) {
+                // Already being kicked
+                if (clankerKicksSchedules.has(userId)) return;
+            } else { // Doesn't have role
+                if (clankerKicksSchedules.has(userId)) {
+                    clearTimeout(clankerKicksSchedules.get(userId))
+                    clankerKicksSchedules.delete(userId);
+                };
+                return;
+            }
+
+            logger.send(`<@${userId}> wanted to be registered as a clanker`);
+
+            member.send("You were registered as a *clanker*.\n\n**If you don't talk to an admin, you'll get kicked in 10 minutes**.");
+
+            const timeout = setTimeout(async () => {
+                clankerKicksSchedules.delete(userId);
+                const member = await refreshMember(memberInfo);
+                const botChanRole = member.roles.cache.find((v) => v.name === 'Bot-Chan');
+
+                if (!botChanRole) return;
+
+                if (member.kickable) member.kick('Filthy clanker!');
+
+                logger.send(`<@${userId}> lived and died as an NPC`);
+            }, 1000 * 60 * 10);
+
+            clankerKicksSchedules.set(userId, timeout)
+        } catch (error) {
+            clankerKicksSchedules.delete(userId);
+            clearTimeout(userId);
+        }
+    }
+
+    bot.on(Events.GuildMemberUpdate, (member) => detectClanker(member));
+    bot.on(Events.GuildMemberAdd, (member) => detectClanker(member));
 
     await bot.login(config.token!);
 
@@ -103,6 +150,7 @@ bootstrap().then(async () => {
     if (!server) throw new Error("Bot hasn't been invited to server");
 
     const channelGeneral = await server.channels.fetch('1284451924447461439') as TextChannel;
+    const logger = await server.channels.fetch('1516670338329612288') as TextChannel; // Log channel
 })
 
 let cleaned = false;
