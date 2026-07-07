@@ -10,7 +10,7 @@ const origin = [user, hostname].join('@');
 execSync([
     'ssh',
     origin,
-    'systemctl --user stop dummy-bot.service',
+    'systemctl stop dummy-bot.service',
 ].join(' '), {
     stdio: 'inherit'
 });
@@ -31,7 +31,7 @@ execSync([
 execSync([
     'ssh',
     origin,
-    'systemctl --user restart dummy-bot.service',
+    'systemctl restart dummy-bot.service',
 ].join(' '), {
     stdio: 'inherit'
 });
