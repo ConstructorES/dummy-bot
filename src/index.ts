@@ -80,13 +80,17 @@ bootstrap().then(async () => {
             if (message.member.user.bot) return;
             if (!message.member.bannable) return;
 
+            const username = message.member.user.username;
+
             message.member.ban({
                 reason: 'You shall not pass!',
                 deleteMessageSeconds: 3600 // 1 hour
             })
 
-            channelGeneral.send(`${message.member.user.username} probó de la miel prohibida`);
-            console.warn(`@${message.member.user.username} was banned due to honeypot detection`)
+            if (message.deletable) message.delete()
+
+            channelGeneral.send(`${username} probó de la miel prohibida`);
+            console.warn(`@${username} was banned due to honeypot detection`)
 
             return;
         }
